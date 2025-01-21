@@ -31,11 +31,13 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     @Override
     public void send(String channel, T msg) {
+        System.out.println("enter send");
         List<Integer> subscribers = channels.get(channel);
         if (subscribers != null) {
             for (Integer connectionId : subscribers) {
                 ConnectionHandler<T> connection = connections.get(connectionId);
                 if (connection != null) {
+                    System.out.println("message sent");
                     connection.send(msg);
                 }
             }

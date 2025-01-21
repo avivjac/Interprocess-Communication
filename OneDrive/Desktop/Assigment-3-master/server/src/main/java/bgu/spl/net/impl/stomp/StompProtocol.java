@@ -133,9 +133,10 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
             return createErrorFrame("SEND frame missing 'destination' header.");
         }
         // ido added a print
-        System.out.println("someone is sending to" + destination.toString() + "the messege:"+msg.getBody());
+        System.out.println("someone is sending to " + destination.toString() + "the messege: "+msg.getBody());
 
-        connections.send(destination,msg);
+        //send the meassage to all the subscribers
+        ((ConnectionsImpl<StompFrame>) connections).send(destination.toString() ,msg); //WHY THE FUCK THIS LINE DONT WORK
 
         return createReceiptFrame(msg.getHeader("receipt"));
     }
