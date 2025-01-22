@@ -135,15 +135,118 @@ void StompProtocol::send(const std::string &destination, const std::string &mess
 
 void StompProtocol::processServerMessages() {
     while (isConnected) {
-        string frame;
-        if (connectionHandler.getFrameAscii(frame, '\0')) {
-            cout << "Server: " << frame << endl;
-        } else {
-            cerr << "Disconnected from server" << endl;
+        std::string message;
+        if (!connectionHandler.getFrameAscii(message, '\0')) {
+            std::cerr << "Disconnected from server." << std::endl;
             isConnected = false;
+            break;
+        }
+
+        // Parse the server message
+        if (message.find("CONNECTED") != std::string::npos) {
+            // Handle CONNECTED frame
+            std::cout << "Successfully connected to the server." << std::endl;
+
+        } else if (message.find("RECEIPT") != std::string::npos) {
+            // Handle RECEIPT frame
+            std::cout << "Receipt received: " << message << std::endl;
+
+        } else if (message.find("ERROR") != std::string::npos) {
+            // Handle ERROR frame
+            std::cerr << "Error from server: " << message << std::endl;
+
+        } else if (message.find("MESSAGE") != std::string::npos) {
+            // Handle MESSAGE frame (e.g., event reports)
+            Event event = parseEventMessage(message); 
+            std::string channel = event.get_channel_name();
+
+            if (savedEvents.find(channel) == savedEvents.end()) {
+                savedEvents[channel] = std::vector<Event>();
+            }
+            savedEvents[channel].push_back(event);
+
+        } else {
+            // Handle unknown or unexpected messages
+            std::cout << "Unknown server message: " << message << std::endl;
         }
     }
 }
+
+Event StompProtocol::parseEventMessage(const std::string &message) {
+    // Variables to store parsed values
+    std::string city, name, description, channel;
+    std::time_t date_time = 0;
+    bool active = false;
+    bool forces_arrival = false;
+    std::map<std::string, std::string> general_information;
+
+    // Helper function to extract fields
+    auto extractField = [](const std::string &msg, size_t startPos, const std::string &fieldName) -> std::string {
+        size_t fieldStart = msg.find(fieldName, startPos) + fieldName.size();
+        size_t fieldEnd = msg.find('\n', fieldStart);
+        return msg.substr(fieldStart, fieldEnd - fieldStart);
+    };
+
+    // Parse city
+    size_t cityPos = message.find("city:");
+    if (cityPos != std::string::npos) {
+        city = extractField(message, cityPos, "city:");
+    }
+
+    // Parse name
+    size_t namePos = message.find("event name:");
+    if (namePos != std::string::npos) {
+        name = extractField(message, namePos, "event name:");
+    }
+
+    // Parse description
+    size_t descriptionPos = message.find("summary:");
+    if (descriptionPos != std::string::npos) {
+        description = extractField(message, descriptionPos, "summary:");
+    }
+
+    // Parse date_time
+    size_t dateTimePos = message.find("date time:");
+    if (dateTimePos != std::string::npos) {
+        std::string dateTimeStr = extractField(message, dateTimePos, "date time:");
+        date_time = std::stol(dateTimeStr); // Convert to epoch time
+    }
+
+    // Parse general information (if applicable)
+    size_t generalInfoPos = message.find("general information:");
+    if (generalInfoPos != std::string::npos) {
+        size_t generalInfoEnd = message.find("\n\n", generalInfoPos); // End of general info section
+        std::string generalInfoBlock = message.substr(generalInfoPos + std::string("general information:").size(),
+                                                       generalInfoEnd - generalInfoPos);
+
+        std::istringstream generalInfoStream(generalInfoBlock);
+        std::string line;
+        while (std::getline(generalInfoStream, line)) {
+            size_t delimiterPos = line.find(':');
+            if (delimiterPos != std::string::npos) {
+                std::string key = line.substr(0, delimiterPos);
+                std::string value = line.substr(delimiterPos + 1);
+                general_information[key] = value;
+            }
+        }
+    }
+
+    // Parse active and forces_arrival_at_scene
+    active = (message.find("active:true") != std::string::npos);
+    forces_arrival = (message.find("forces arrival:true") != std::string::npos);
+
+    // Parse channel (if applicable)
+    size_t channelPos = message.find("destination:");
+    if (channelPos != std::string::npos) {
+        channel = extractField(message, channelPos, "destination:");
+    }
+
+
+    // Construct the Event object
+    return Event(channel, city, name, date_time, description, general_information);
+}
+
+
 
 void StompProtocol::report(const std::string &file) {
     // Open the file and read its contents
@@ -295,22 +398,100 @@ void StompProtocol::sendEventToChannel(const std::string& channel, const Event& 
 
 
 
-void StompProtocol::handleSummaryCommand(const std::string &channelName, const std::string &user, const std::string &file) {
-    // Construct the summary based on channelName and user
-    std::string summary = "Summary for user: " + user + " in channel: " + channelName;
+// void StompProtocol::handleSummaryCommand(const std::string &channelName, const std::string &user, const std::string &file) {
+//     // Construct the summary based on channelName and user
+//     std::string summary = "Summary for user: " + user + " in channel: " + channelName;
 
-    // Write the summary to the specified file
+//     // Write the summary to the specified file
+//     std::ofstream outputFile(file);
+//     if (!outputFile.is_open()) {
+//         std::cerr << "Failed to open file for writing: " << file << std::endl;
+//         return;
+//     }
+
+//     outputFile << summary;
+
+//     // Write the saved events to the file
+//     for (const Event& event : savedEvents[channelName]) {
+//         if (event.get_name() == user) {
+//               outputFile << "\n\nEvent name: " << event.get_name()
+//                    << "\nDate time: " << epochToDate(event.get_date_time())
+//                    << "\nDescription: " << summarizeDescription(event.get_description());
+//         }
+      
+//     }
+
+
+//     outputFile.close();
+//     std::cout << "Summary written to file: " << file << std::endl;
+// }
+
+void StompProtocol::handleSummaryCommand(const std::string &channelName, const std::string &user, const std::string &file) {
+    // Open the output file
     std::ofstream outputFile(file);
     if (!outputFile.is_open()) {
         std::cerr << "Failed to open file for writing: " << file << std::endl;
         return;
     }
 
-    outputFile << summary;
-    outputFile.close();
-    std::cout << "Summary written to file: " << file << std::endl;
+    // Header: Channel and Stats
+    outputFile << "Channel < " << channelName << " >\n";
+    outputFile << "Stats :\n";
+
+    // Calculate stats
+    int totalReports = 0;
+    int activeCount = 0;
+    int forcesArrivalCount = 0;
+
+
+    // Iterate over events for the given channel
+    for (Event& event : savedEvents[channelName]) {
+          if (event.get_name() == user) {
+        totalReports++;
+        map<std::string, std::string> generalinfo = event.get_general_information();
+        bool active = (generalinfo["active"] == "true");
+        bool forces_arrival_at_scene = (generalinfo["forces_arrival_at_scene"] == "true");
+
+        if (active ? "true" : "false") {  // Assuming `get_active()` returns a boolean
+            activeCount++;
+        }
+        if (forces_arrival_at_scene) {  // Assuming `get_forces_arrival_at_scene()` returns a boolean
+            forcesArrivalCount++;
+        }
+          }
+    }
+
+    // Write stats to the file
+    outputFile << "Total : " << totalReports << "\n";
+    outputFile << "active : " << activeCount << "\n";
+    outputFile << "forces arrival at scene : " << forcesArrivalCount << "\n";
+
+    // Event Reports Section
+    outputFile << "Event Reports :\n";
+
+    int reportCounter = 1;
+    for (const Event& event : savedEvents[channelName]) {
+        if (event.get_name() == user) {  // Include only events matching the user's name
+            outputFile << "Report_" << reportCounter++ << " :\n";
+            outputFile << "city : " << event.get_city() << "\n";  // Assuming `get_city()` exists
+            outputFile << "date time : " << epochToDate(event.get_date_time()) << "\n";
+            outputFile << "event name : " << event.get_name() << "\n";
+            outputFile << "summary : " << summarizeDescription(event.get_description()) << "\n\n";
+        }
+    }
+
+    outputFile.close();  // Close the file
 }
 
+
+
+std::string StompProtocol::extractField(const std::string &message, size_t startPos, const std::string &fieldName) {
+    size_t endPos = message.find('\n', startPos);
+    if (endPos == std::string::npos) {
+        endPos = message.length();
+    }
+    return message.substr(startPos + fieldName.length(), endPos - startPos - fieldName.length());
+}
 
 std::string StompProtocol::epochToDate(time_t epochTime) {
     std::tm* tm = std::localtime(&epochTime);

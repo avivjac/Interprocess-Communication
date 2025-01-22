@@ -31,10 +31,12 @@ public:
     void unsubscribe(const string &channel);
     void send(const string &destination, const string &message);
     void processServerMessages();
+    Event parseEventMessage(const std::string &message);
     void handleUserInput();
     void report(const std::string &file);
     void sendEventToChannel(const std::string &channel, const Event &event);
     void handleSummaryCommand(const std::string &channelName, const std::string &user, const std::string &file);
+    std::string extractField(const std::string &message, size_t startPos, const std::string &fieldName);
     string epochToDate(time_t epochTime);
     string summarizeDescription(const string &description);
 };
