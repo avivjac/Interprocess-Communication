@@ -1,0 +1,40 @@
+#pragma once
+
+#include "../include/ConnectionHandler.h"
+#include "event.h"
+#include <iostream>
+#include <string>
+#include <thread>
+
+using namespace std;
+
+// TODO: implement the STOMP protocol
+class StompProtocol
+{
+private:
+    ConnectionHandler connectionHandler;
+    bool isConnected;
+    std::map<std::string, int> subscriptions; // Map channel names to subscription IDs
+    int subscriptionCounter;
+    std::string username;
+    std::map<std::string, std::vector<Event>> savedEvents; // Map channel names to saved events
+
+public:
+    StompProtocol(const string &host, int port);
+    StompProtocol(const string &host, int port, const string &username);
+    StompProtocol();
+    void updateStompProtocol(const string &host, int port);
+    bool connect(const string &username, const string &password);
+    void saveEvents(const std::string &channel, const std::vector<Event> &events);
+    void disconnect();
+    void subscribe(const string &channel);
+    void unsubscribe(const string &channel);
+    void send(const string &destination, const string &message);
+    void processServerMessages();
+    void handleUserInput();
+    void report(const std::string &file);
+    void sendEventToChannel(const std::string &channel, const Event &event);
+    void handleSummaryCommand(const std::string &channelName, const std::string &user, const std::string &file);
+    string epochToDate(time_t epochTime);
+    string summarizeDescription(const string &description);
+};
