@@ -16,6 +16,8 @@ private:
     bool isConnected;
     std::map<std::string, int> subscriptions; // Map channel names to subscription IDs
     int subscriptionCounter;
+    int receiptCounter;
+    int logOutid;
     std::string username;
     std::map<std::string, std::vector<Event>> savedEvents; // Map channel names to saved events
 

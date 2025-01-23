@@ -14,6 +14,7 @@ int main() {
 
     // Atomic flag for thread management
     std::atomic<bool> running(true);
+    bool isLogin = false;
      std::thread inputThread;
      std::thread serverThread;
     // bool isLogin = false;
@@ -32,7 +33,7 @@ int main() {
         if (command == "login") {
             string hostPort, username, password;
             iss >> hostPort >> username >> password;
-
+            cout << "hostPort: " << hostPort << " username: " << username << " password: " << password << endl;
             // Validate the format of host:port
             size_t colonPos = hostPort.find(':');
             if (colonPos == string::npos) {
@@ -53,7 +54,12 @@ int main() {
                 running = false;
             } else {
                 cout << "Login successful. Connected to " << host << ":" << port << endl;
-                serverThread = std::thread(&StompProtocol::processServerMessages, protocol);
+                if (!isLogin)
+                {
+                    isLogin = true;
+                    serverThread = std::thread(&StompProtocol::processServerMessages, protocol);
+                }
+                
             }
 
         } 

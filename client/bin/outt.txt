@@ -1,6 +1,6 @@
 Channel < police >
 Stats :
-Total : 7
-active : 7
-forces arrival at scene : 4
+Total : 0
+active : 0
+forces arrival at scene : 0
 Event Reports :

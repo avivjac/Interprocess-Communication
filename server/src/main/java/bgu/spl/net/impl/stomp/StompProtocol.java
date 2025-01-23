@@ -42,7 +42,7 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
             case "DISCONNECT":
                 return handleDisconnect(msg);
             default:
-                return createErrorFrame("Unknown command: " + command);
+                return createErrorFrame("Unknown command: " + command, null, msg);
         }
     }
 
@@ -55,28 +55,28 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         //Case 2 - The client is already logged in
         System.out.println("somenone is trying to connect");
         if (username != null) {
-            return createErrorFrame("The client is already logged in, log out before trying again");
+            return createErrorFrame("The client is already logged in, log out before trying again", null, msg);
         }
 
         String login = msg.getHeader("login");
         String passcode = msg.getHeader("passcode");
 
         //case 1 - farme validation 
-        if (login == null || passcode == null) {
+        if (login.equals(("")) || passcode.equals("") || login == null || passcode == null) { 
             
-            return createErrorFrame("Could not connect to server");
+            return createErrorFrame("Could not connect to server", null, msg);
         }
 
         ConnectionsImpl<StompFrame> connectionsImpl = (ConnectionsImpl<StompFrame>) connections;
 
         //case 5
         if (!connectionsImpl.registerUser(login, passcode) && !connectionsImpl.authenticateUser(login, passcode)) {
-            return createErrorFrame("Wrong password");
+            return createErrorFrame("Wrong password", null, msg);
         }
 
         //Case 4
         if (!connectionsImpl.loginUser(login, connectionId)) {
-            return createErrorFrame("User already logged in.");
+            return createErrorFrame("User already logged in.", null, msg);
         }
 
         username = login;
@@ -88,15 +88,16 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
     }
 
     private StompFrame handleSubscribe(StompFrame msg) {
+        String receiptID = msg.getHeader("receipt");
         if (username == null) {
-            return createErrorFrame("User not logged in. Please CONNECT first.");
+            return createErrorFrame("User not logged in. Please CONNECT first.", receiptID, msg);
         }
         String destination = msg.getHeader("destination");
         System.out.println("someone is subscribing to " + destination.toString());
         String subscriptionId = msg.getHeader("id");
 
         if (destination == null || subscriptionId == null) {
-            return createErrorFrame("SUBSCRIBE frame missing 'destination' or 'id' header.");
+            return createErrorFrame("SUBSCRIBE frame missing 'destination' or 'id' header.", receiptID, msg);
         }
         // ido added a print
         System.out.println(subscriptionId+" is subscribing to " + destination.toString());
@@ -104,17 +105,18 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         subscriptions.put(subscriptionId, destination);
         ((ConnectionsImpl<StompFrame>) connections).subscribeToChannel(destination, connectionId);
 
-        return createReceiptFrame(msg.getHeader("receipt"));
+        return createReceiptFrame(receiptID);
     }
 
     private StompFrame handleUnsubscribe(StompFrame msg) {
+        String receiptID = msg.getHeader("receipt");
         if (username == null) {
-            return createErrorFrame("User not logged in. Please CONNECT first.");
+            return createErrorFrame("User not logged in. Please CONNECT first.", receiptID, msg);
         }
         String subscriptionId = msg.getHeader("id");
 
         if (subscriptionId == null || !subscriptions.containsKey(subscriptionId)) {
-            return createErrorFrame("UNSUBSCRIBE frame missing 'id' or invalid subscription.");
+            return createErrorFrame("UNSUBSCRIBE frame missing 'id' or invalid subscription.", receiptID, msg);
         }
         
         String destination = subscriptions.remove(subscriptionId);
@@ -123,18 +125,18 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         // ido added a print
         System.out.println(subscriptionId+" is unsubscribing from " + destination.toString());
 
-        return createReceiptFrame(msg.getHeader("receipt"));
+        return createReceiptFrame(receiptID);
     }
 
     private StompFrame handleSend(StompFrame msg) {
         if (username == null) {
-            return createErrorFrame("User not logged in. Please CONNECT first.");
+            return createErrorFrame("User not logged in. Please CONNECT first.", null, msg);
         }
         String finalDestination = msg.getHeader("destination");
         //final String finalDestination = destination.substring(1); // Remove the leading '/' character
 
         if (finalDestination == null) {
-            return createErrorFrame("SEND frame missing 'destination' header.");
+            return createErrorFrame("SEND frame missing 'destination' header.", null, msg);
         }
         // ido added a print
         System.out.println("someone is sending to " + finalDestination.toString() + " the messege: "+msg.getBody());
@@ -155,12 +157,17 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
     }
 
     private StompFrame handleDisconnect(StompFrame msg) {
+        String receiptID = msg.getHeader("receipt");
+
         if (username == null) {
-            return createErrorFrame("User not logged in. Please CONNECT first.");
+            return createErrorFrame("User not logged in. Please CONNECT first.", receiptID, msg);
         }
         
         // Remove the user from active users
-        ((ConnectionsImpl<StompFrame>) connections).send(this.connectionId, createReceiptFrame(msg.getHeader("receipt")));
+        StompFrame s = createReceiptFrame(receiptID);
+        System.out.println(s);
+
+        ((ConnectionsImpl<StompFrame>) connections).send(this.connectionId, s);
         ((ConnectionsImpl<StompFrame>) connections).logoutUser(username);
 
         // Clear all subscriptions
@@ -182,10 +189,15 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         return null;
     }
 
-    private StompFrame createErrorFrame(String message) {
+    //function to create an error frame, if the frame have receipt id it will add to the error frame, else, it will get null as the receipt id and will not add it to the error frame
+    private StompFrame createErrorFrame(String message, String receiptId, StompFrame msg) {
         StompFrame errorFrame = new StompFrame("ERROR");
+        if (receiptId != null)
+        {
+            errorFrame.addHeader("receipt-id", receiptId);
+        }
         errorFrame.addHeader("message", message);
-        errorFrame.setBody("Error: " + message);
+        errorFrame.setBody("The message: \n" + "-----\n" + msg.toString() + "\n-----\n");
         return errorFrame;
     }
 }

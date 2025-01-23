@@ -10,6 +10,8 @@
 #include <thread>
 #include <sstream>
 #include <iomanip>
+#include <mutex>
+
 
 using namespace std;
 
@@ -24,9 +26,8 @@ using namespace std;
 //     }
 // }
 
-StompProtocol::StompProtocol(const string &host, int port, const string &username):connectionHandler(host, port), isConnected(false),subscriptions() ,subscriptionCounter(0),username(username),savedEvents()
+StompProtocol::StompProtocol(const string &host, int port, const string &username):connectionHandler(host, port), isConnected(false),subscriptions() ,subscriptionCounter(0), receiptCounter(0), logOutid(-999), username(username),savedEvents()
 {
-
 }
 
 // StompProtocol::StompProtocol(): connectionHandler("", 0), isConnected(false),subscriptions() ,subscriptionCounter(0),username(),savedEvents()
@@ -81,23 +82,23 @@ bool StompProtocol::connect(const std::string &username, const std::string &pass
 
 void StompProtocol::saveEvents(const std::string& channel, const std::vector<Event>& events) {
     for (const Event& event : events) {
-    savedEvents[channel].push_back(event); // `savedEvents` is a `std::map<std::string, std::vector<Event>>`
-}
+        savedEvents[channel].push_back(event); // `savedEvents` is a `std::map<std::string, std::vector<Event>>`
+    }
 }
 
 void StompProtocol::disconnect() {
+
     if (!isConnected) {
         std::cerr << "Not connected to any server." << std::endl;
         return;
     }
 
-    // Send DISCONNECT frame
-    std::string disconnectFrame = "DISCONNECT\n\n\0";
-    connectionHandler.sendFrameAscii(disconnectFrame, '\0');
+    logOutid = receiptCounter; // Generate a unique receipt ID
+    receiptCounter++;
 
-    // Close the connection
-    connectionHandler.close();
-    //////////////////////////////////isConnected = false;
+    // Send DISCONNECT frame
+    std::string disconnectFrame = "DISCONNECT\nreceipt:" + std::to_string(logOutid) + "\n\n\0";
+    connectionHandler.sendFrameAscii(disconnectFrame, '\0');
 }
 
 void StompProtocol::subscribe(const std::string &channel) {
@@ -106,7 +107,9 @@ void StompProtocol::subscribe(const std::string &channel) {
 
     // Construct and send SUBSCRIBE frame
     std::string subscribeFrame = "SUBSCRIBE\ndestination:" + channel +
-                                 "\nid:" + std::to_string(subscriptionId) + "\n\n\0";
+                                 "\nid:" + std::to_string(subscriptionId) +
+                                 "\nreceipt:" + std::to_string(receiptCounter) + "\n\n\0";
+    receiptCounter++;
     connectionHandler.sendFrameAscii(subscribeFrame, '\0');
 }
 
@@ -120,7 +123,8 @@ void StompProtocol::unsubscribe(const std::string &channel) {
     subscriptions.erase(channel);
 
     // Construct and send UNSUBSCRIBE frame
-    std::string unsubscribeFrame = "UNSUBSCRIBE\nid:" + std::to_string(subscriptionId) + "\n\n\0";
+    std::string unsubscribeFrame = "UNSUBSCRIBE\nid:" + std::to_string(subscriptionId) + "\nreceipt:" + std::to_string(receiptCounter) +"\n\n\0";
+    receiptCounter++;
     connectionHandler.sendFrameAscii(unsubscribeFrame, '\0');
 }
 
@@ -131,16 +135,19 @@ void StompProtocol::send(const std::string &destination, const std::string &mess
     std::string sendFrame = "SEND\ndestination:" + destination + "\n\n" + message + "\0";
     //cout << "send frame is " << sendFrame << endl;
     connectionHandler.sendFrameAscii(sendFrame, '\0');
+
 }
 
 
 void StompProtocol::processServerMessages() {
     while (isConnected) {
         std::string message;
+
+
         if (!connectionHandler.getFrameAscii(message, '\0')) {
             std::cerr << "Disconnected from server." << std::endl;
             isConnected = false;
-            break;
+            //break;
         }
         std::cout << "the message is  "<< message << std::endl;
 
@@ -153,9 +160,16 @@ void StompProtocol::processServerMessages() {
             // Handle RECEIPT frame
             std::cout << "Receipt received: " << message << std::endl;
 
+            if (message.find("receipt-id:" + std::to_string(logOutid)) != std::string::npos) {
+                std::cout << "Disconnect receipt received. Logging out." << std::endl;
+                connectionHandler.close();
+                isConnected = false;
+            }
+
         } else if (message.find("ERROR") != std::string::npos) {
             // Handle ERROR frame
             std::cerr << "Error from server: " << message << std::endl;
+            disconnect(); //do we need to disconnect here?
 
         } else if (message.find("MESSAGE") != std::string::npos) {
             // Handle MESSAGE frame (e.g., event reports)
