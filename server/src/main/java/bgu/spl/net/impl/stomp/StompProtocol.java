@@ -28,6 +28,7 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
     @Override
     public StompFrame process(StompFrame msg) {
         String command = msg.getCommand();
+        System.out.println("command!!!!!!!!!!!!!!!!" + command);
 
         switch (command) {
             case "CONNECT":
@@ -129,14 +130,14 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         if (username == null) {
             return createErrorFrame("User not logged in. Please CONNECT first.");
         }
-        String destination = msg.getHeader("destination");
-        final String finalDestination = destination.substring(1); // Remove the leading '/' character
+        String finalDestination = msg.getHeader("destination");
+        //final String finalDestination = destination.substring(1); // Remove the leading '/' character
 
         if (finalDestination == null) {
             return createErrorFrame("SEND frame missing 'destination' header.");
         }
         // ido added a print
-        System.out.println("someone is sending to " + destination.toString() + " the messege: "+msg.getBody());
+        System.out.println("someone is sending to " + finalDestination.toString() + " the messege: "+msg.getBody());
 
         StompFrame returnMsg = new StompFrame("MESSAGE");
         returnMsg.setBody(msg.getBody());
@@ -146,9 +147,9 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
                 .findFirst()
                 .orElse(null));
         returnMsg.addHeader("Message-id", String.valueOf(connectionId));
-        returnMsg.addHeader("destination", destination);
+        returnMsg.addHeader("destination", finalDestination);
         //send the meassage to all the subscribers
-        ((ConnectionsImpl<StompFrame>) connections).send(destination ,returnMsg);
+        ((ConnectionsImpl<StompFrame>) connections).send(finalDestination ,returnMsg);
 
         return createReceiptFrame(msg.getHeader("receipt"));
     }

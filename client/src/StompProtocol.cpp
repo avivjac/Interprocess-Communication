@@ -129,6 +129,7 @@ void StompProtocol::unsubscribe(const std::string &channel) {
 void StompProtocol::send(const std::string &destination, const std::string &message) {
     // Construct and send SEND frame
     std::string sendFrame = "SEND\ndestination:" + destination + "\n\n" + message + "\0";
+    //cout << "send frame is " << sendFrame << endl;
     connectionHandler.sendFrameAscii(sendFrame, '\0');
 }
 
@@ -141,6 +142,7 @@ void StompProtocol::processServerMessages() {
             isConnected = false;
             break;
         }
+        std::cout << "the message is  "<< message << std::endl;
 
         // Parse the server message
         if (message.find("CONNECTED") != std::string::npos) {
@@ -158,9 +160,18 @@ void StompProtocol::processServerMessages() {
         } else if (message.find("MESSAGE") != std::string::npos) {
             // Handle MESSAGE frame (e.g., event reports)
             Event event = parseEventMessage(message); 
+            cout << "event is channel name " << event.get_channel_name() << endl;
+            cout << "event is " << event.get_city() << endl;
+            cout << "event is " << event.get_name() << endl;
+            cout << "event is " << event.get_date_time() << endl;
+            cout << "event is " << event.get_description() << endl;
+            cout << "event is " << event.getEventOwnerUser() << endl;
+            //cout << "event is " << event.get_general_information(). << endl;
+
             std::string channel = event.get_channel_name();
 
             if (savedEvents.find(channel) == savedEvents.end()) {
+                cout << "find hashmap!!!!!!!!!!!!!!!!!!!!!1 " << channel << endl;
                 savedEvents[channel] = std::vector<Event>();
             }
             savedEvents[channel].push_back(event);
@@ -200,9 +211,9 @@ Event StompProtocol::parseEventMessage(const std::string &message) {
     }
 
     // Parse description
-    size_t descriptionPos = message.find("summary:");
+    size_t descriptionPos = message.find("description:");
     if (descriptionPos != std::string::npos) {
-        description = extractField(message, descriptionPos, "summary:");
+        description = extractField(message, descriptionPos, "description:");
     }
 
     // Parse date_time
@@ -241,28 +252,57 @@ Event StompProtocol::parseEventMessage(const std::string &message) {
         channel = extractField(message, channelPos, "destination:");
     }
 
-
+    Event e(channel, city, name, date_time, description, general_information);
+    e.setEventOwnerUser(extractField(message, 0, "user:"));
     // Construct the Event object
-    return Event(channel, city, name, date_time, description, general_information);
+    cout << "EventOwnerUser!!!!!!!!!!!!!!1 " << e.getEventOwnerUser() << endl;
+    cout << "desscription!!!!!!!!!!!!!!1 " << e.get_description() << endl;
+
+    return e;
 }
 
 
 
-void StompProtocol::report(const std::string &file) {
-    // Open the file and read its contents
-    std::ifstream inputFile(file);
+void StompProtocol::report(const std::string &filePath) {
+
+    std::ifstream inputFile(filePath);
     if (!inputFile.is_open()) {
-        std::cerr << "Failed to open file: " << file << std::endl;
+        std::cerr << "Failed to open file: " << filePath << std::endl;
         return;
+
     }
+    names_and_events parsedEvents = parseEventsFile(filePath);
+    for (Event& event : parsedEvents.events) {
+        sendEventToChannel(parsedEvents.channel_name, event);
+    }
+    
 
-    std::stringstream buffer;
-    buffer << inputFile.rdbuf();
-    std::string fileContent = buffer.str();
+    // Open the file and read its contents
+    
 
-    // Construct and send a SEND frame with the report
-    send("/report", fileContent);
-    std::cout << "Report sent for file: " << file << std::endl;
+    // std::stringstream buffer;
+    // buffer << inputFile.rdbuf();
+    // std::string fileContent = buffer.str();
+
+    // std::cout << "File content: " << fileContent << std::endl;
+
+    // // Extract the destination from the file content
+    // std::string destination;
+    // size_t destPos = fileContent.find(""channel_name":"); //searching here the right searcgh chanel name with space or without
+    // //cout << "channel name: " << destPos << endl;
+    // if (destPos != std::string::npos) {
+    //     size_t endPos = fileContent.find('\n', destPos);
+    //     destination = fileContent.substr(destPos + 12, endPos - destPos - 12);
+    //     std::cout << "Destination: " << destination << std::endl;
+    //     cout << "channel name: " << destination << endl;
+    // } else {
+    //     std::cerr << "Destination not found in file content" << std::endl;
+    // }
+
+    // // Construct and send a SEND frame with the report
+    // send(destination, fileContent);
+    // std::cout << "Report sent for file: " << file << std::endl;
+    
 }
 
 
@@ -273,7 +313,7 @@ void StompProtocol::sendEventToChannel(const std::string& channel, const Event& 
     auto generalInfo = event.get_general_information(); // Assuming this returns a std::map<std::string, std::string>
     bool active = (generalInfo["active"] == "true");
     bool forces_arrival_at_scene = (generalInfo["forces_arrival_at_scene"] == "true");
-
+    cout << "user:  " << username << endl;
     // Construct the frame body
     frameBody << "user:" << username << "\n"
               << "city:" << event.get_city() << "\n"
@@ -285,6 +325,8 @@ void StompProtocol::sendEventToChannel(const std::string& channel, const Event& 
               << "description:" << event.get_description() << "\n";
 
     // Send the constructed frame body to the channel
+    // std::cout << channel << std::endl;
+    // std::cout << frameBody.str() << std::endl;
     send(channel, frameBody.str());
 }
 
@@ -442,11 +484,11 @@ void StompProtocol::handleSummaryCommand(const std::string &channelName, const s
     int totalReports = 0;
     int activeCount = 0;
     int forcesArrivalCount = 0;
-
-
     // Iterate over events for the given channel
     for (Event& event : savedEvents[channelName]) {
-          if (event.get_name() == user) {
+        cout << "event name is " << event.get_name() << endl;
+
+          if (event.getEventOwnerUser() == user) {
         totalReports++;
         map<std::string, std::string> generalinfo = event.get_general_information();
         bool active = (generalinfo["active"] == "true");
@@ -471,7 +513,7 @@ void StompProtocol::handleSummaryCommand(const std::string &channelName, const s
 
     int reportCounter = 1;
     for (const Event& event : savedEvents[channelName]) {
-        if (event.get_name() == user) {  // Include only events matching the user's name
+        if (event.getEventOwnerUser() == user) {  // Include only events matching the user's name
             outputFile << "Report_" << reportCounter++ << " :\n";
             outputFile << "city : " << event.get_city() << "\n";  // Assuming `get_city()` exists
             outputFile << "date time : " << epochToDate(event.get_date_time()) << "\n";
