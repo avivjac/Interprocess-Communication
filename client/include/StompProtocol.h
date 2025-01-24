@@ -8,7 +8,6 @@
 
 using namespace std;
 
-// TODO: implement the STOMP protocol
 class StompProtocol
 {
 private:

@@ -149,6 +149,10 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         // ido added a print
         System.out.println("someone is sending to " + finalDestination.toString() + " the messege: "+msg.getBody());
 
+        if (!subscriptions.containsValue(finalDestination)) {
+            return createErrorFrame("User is not subscribed to this channel.", null, msg);
+        }
+
         StompFrame returnMsg = new StompFrame("MESSAGE");
         returnMsg.setBody(msg.getBody());
         returnMsg.addHeader("subscription", subscriptions.entrySet().stream()

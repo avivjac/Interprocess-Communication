@@ -11,6 +11,7 @@
 #include <sstream>
 #include <iomanip>
 #include <mutex>
+#include <algorithm>
 
 
 using namespace std;
@@ -93,6 +94,7 @@ void StompProtocol::disconnect() {
         return;
     }
 
+    isConnected = false;
     logOutid = receiptCounter; // Generate a unique receipt ID
     receiptCounter++;
 
@@ -189,6 +191,9 @@ void StompProtocol::processServerMessages() {
                 savedEvents[channel] = std::vector<Event>();
             }
             savedEvents[channel].push_back(event);
+            std::sort(savedEvents[channel].begin(), savedEvents[channel].end(), [](const Event& a, const Event& b) {
+                return a.get_date_time() < b.get_date_time(); // מיון בסדר עולה
+            });
 
         } else {
             // Handle unknown or unexpected messages
@@ -285,7 +290,22 @@ void StompProtocol::report(const std::string &filePath) {
         return;
 
     }
+
     names_and_events parsedEvents = parseEventsFile(filePath);
+
+    if (subscriptions.find(parsedEvents.channel_name) == subscriptions.end()) {
+        std::cerr << "Didn't subscribe to channel " + parsedEvents.channel_name << std::endl;
+        return;
+    }
+    if (parsedEvents.channel_name.empty()) {
+        std::cerr << "No channel name found in file: " << filePath << std::endl;
+        return;
+    }
+    if (parsedEvents.events.empty()) {
+        std::cerr << "No events found in file: " << filePath << std::endl;
+        return;
+    }
+
     for (Event& event : parsedEvents.events) {
         sendEventToChannel(parsedEvents.channel_name, event);
     }
