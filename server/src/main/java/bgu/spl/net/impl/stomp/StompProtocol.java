@@ -53,12 +53,14 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
 
     private StompFrame handleConnect(StompFrame msg) {
         //Case 2 - The client is already logged in
-        System.out.println("somenone is trying to connect");
+        System.out.println("somenone is trying to connect " + username);
+
         if (username != null) {
             return createErrorFrame("The client is already logged in, log out before trying again", null, msg);
         }
 
         String login = msg.getHeader("login");
+        System.out.println("user: " + login);
         String passcode = msg.getHeader("passcode");
 
         //case 1 - farme validation 
@@ -79,7 +81,7 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
             return createErrorFrame("User already logged in.", null, msg);
         }
 
-        username = login;
+        this.username = login;
         //case 6
         StompFrame ret = new StompFrame("CONNECTED");
         ret.addHeader("version", "1.2");
@@ -92,9 +94,15 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         if (username == null) {
             return createErrorFrame("User not logged in. Please CONNECT first.", receiptID, msg);
         }
+
+        
         String destination = msg.getHeader("destination");
         System.out.println("someone is subscribing to " + destination.toString());
         String subscriptionId = msg.getHeader("id");
+
+        if (subscriptions.containsValue(destination)) {
+            return createErrorFrame("User is already subscribed to this channel.", receiptID, msg);
+        }
 
         if (destination == null || subscriptionId == null) {
             return createErrorFrame("SUBSCRIBE frame missing 'destination' or 'id' header.", receiptID, msg);

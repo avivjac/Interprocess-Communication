@@ -149,7 +149,7 @@ void StompProtocol::processServerMessages() {
             isConnected = false;
             //break;
         }
-        std::cout << "the message is  "<< message << std::endl;
+        //דstd::cout << "the message is  "<< message << std::endl;
 
         // Parse the server message
         if (message.find("CONNECTED") != std::string::npos) {
@@ -168,7 +168,7 @@ void StompProtocol::processServerMessages() {
 
         } else if (message.find("ERROR") != std::string::npos) {
             // Handle ERROR frame
-            std::cerr << "Error from server: " << message << std::endl;
+            std::cerr << message << std::endl;
             disconnect(); //do we need to disconnect here?
 
         } else if (message.find("MESSAGE") != std::string::npos) {
@@ -508,7 +508,7 @@ void StompProtocol::handleSummaryCommand(const std::string &channelName, const s
         bool active = (generalinfo["active"] == "true");
         bool forces_arrival_at_scene = (generalinfo["forces_arrival_at_scene"] == "true");
 
-        if (active ? "true" : "false") {  // Assuming `get_active()` returns a boolean
+        if (active) {  // Assuming `get_active()` returns a boolean
             activeCount++;
         }
         if (forces_arrival_at_scene) {  // Assuming `get_forces_arrival_at_scene()` returns a boolean
@@ -561,5 +561,11 @@ std::string StompProtocol::summarizeDescription(const std::string& description) 
         return description;
     }
     return description.substr(0, 27) + "...";
+}
+
+//getter
+bool StompProtocol::getIsConnected()
+{
+    return isConnected;
 }
 

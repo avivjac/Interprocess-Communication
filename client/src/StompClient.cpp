@@ -15,8 +15,8 @@ int main() {
     // Atomic flag for thread management
     std::atomic<bool> running(true);
     bool isLogin = false;
-     std::thread inputThread;
-     std::thread serverThread;
+    std::thread inputThread;
+    std::thread serverThread;
     // bool isLogin = false;
     StompProtocol* protocol = nullptr;
 
@@ -31,37 +31,42 @@ int main() {
         iss >> command;
 
         if (command == "login") {
-            string hostPort, username, password;
-            iss >> hostPort >> username >> password;
-            cout << "hostPort: " << hostPort << " username: " << username << " password: " << password << endl;
-            // Validate the format of host:port
-            size_t colonPos = hostPort.find(':');
-            if (colonPos == string::npos) {
-                cerr << "Invalid format for host:port. Expected <host>:<port>" << endl;
-                continue;
-            }
-
-            string host = hostPort.substr(0, colonPos);
-            int port = stoi(hostPort.substr(colonPos + 1));
-
-            protocol =new StompProtocol(host, port, username);
-           
-
-            // Attempt to connect
-            if (!protocol->connect(username, password)) {
-                cerr << "Login failed, please try again." << endl;
-               
-                running = false;
-            } else {
-                cout << "Login successful. Connected to " << host << ":" << port << endl;
-                if (!isLogin)
-                {
-                    isLogin = true;
-                    serverThread = std::thread(&StompProtocol::processServerMessages, protocol);
-                }
+            if (!(protocol != nullptr && protocol->getIsConnected())) {
                 
-            }
+                string hostPort, username, password;
+                iss >> hostPort >> username >> password;
+                cout << "hostPort: " << hostPort << " username: " << username << " password: " << password << endl;
+                // Validate the format of host:port
+                size_t colonPos = hostPort.find(':');
+                if (colonPos == string::npos) {
+                    cerr << "Invalid format for host:port. Expected <host>:<port>" << endl;
+                    continue;
+                }
 
+                string host = hostPort.substr(0, colonPos);
+                int port = stoi(hostPort.substr(colonPos + 1));
+
+                protocol =new StompProtocol(host, port, username);
+            
+                // Attempt to connect
+                if (!protocol->connect(username, password)) {
+                    cerr << "Login failed, please try again." << endl;
+                
+                    running = false;
+                } else {
+                    cout << "Login successful. Connected to " << host << ":" << port << endl;
+                    if (!isLogin)
+                    {
+                        isLogin = true;
+                        serverThread = std::thread(&StompProtocol::processServerMessages, protocol);
+                    }
+                    
+                }
+            }
+            else
+            {
+                cerr << "Already logged in. Please logout first." << endl;
+            }
         } 
          else if (command == "join") {
             string channel;

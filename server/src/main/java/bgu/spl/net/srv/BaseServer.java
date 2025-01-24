@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 public  class BaseServer implements Server<StompFrame> {
-
+    //fields
     private final int port;
     private final Supplier<MessagingProtocol<StompFrame>> protocolFactory;
     private final Supplier<MessageEncoderDecoder<StompFrame>> encdecFactory;
@@ -20,10 +20,8 @@ public  class BaseServer implements Server<StompFrame> {
     private Connections<StompFrame> connections;
     private  AtomicInteger connectionIdCounter;
 
-    public BaseServer(
-            int port,
-            Supplier<MessagingProtocol<StompFrame>> protocolFactory,
-            Supplier<MessageEncoderDecoder<StompFrame>> encdecFactory) {
+    //constructor
+    public BaseServer(int port, Supplier<MessagingProtocol<StompFrame>> protocolFactory, Supplier<MessageEncoderDecoder<StompFrame>> encdecFactory) {
 
         this.port = port;
         this.protocolFactory = protocolFactory;

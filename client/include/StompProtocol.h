@@ -41,4 +41,5 @@ public:
     std::string extractField(const std::string &message, size_t startPos, const std::string &fieldName);
     string epochToDate(time_t epochTime);
     string summarizeDescription(const string &description);
+    bool getIsConnected();
 };
