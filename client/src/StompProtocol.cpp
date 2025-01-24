@@ -270,8 +270,8 @@ Event StompProtocol::parseEventMessage(const std::string &message) {
     }
 
     // Parse active and forces_arrival_at_scene
-    active = (message.find("active:true") != std::string::npos);
-    forces_arrival = (message.find("forces arrival:true") != std::string::npos);
+    //active = (message.find("active:true") != std::string::npos);
+    //forces_arrival = (message.find("forces arrival:true") != std::string::npos);
 
     // Parse channel (if applicable)
     size_t channelPos = message.find("destination:");

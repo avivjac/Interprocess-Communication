@@ -95,7 +95,6 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
             return createErrorFrame("User not logged in. Please CONNECT first.", receiptID, msg);
         }
 
-        
         String destination = msg.getHeader("destination");
         System.out.println("someone is subscribing to " + destination.toString());
         String subscriptionId = msg.getHeader("id");
@@ -161,7 +160,7 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
                 .orElse(null));
         returnMsg.addHeader("Message-id", String.valueOf(connectionId));
         returnMsg.addHeader("destination", finalDestination);
-        
+
         //send the meassage to all the subscribers
         ((ConnectionsImpl<StompFrame>) connections).send(finalDestination ,returnMsg);
 
@@ -180,6 +179,13 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         System.out.println(s);
 
         ((ConnectionsImpl<StompFrame>) connections).send(this.connectionId, s);
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        
         ((ConnectionsImpl<StompFrame>) connections).logoutUser(username);
 
         // Clear all subscriptions
