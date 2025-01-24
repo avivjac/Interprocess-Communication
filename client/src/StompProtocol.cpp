@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <mutex>
 #include <algorithm>
+#include <mutex>
 
 
 using namespace std;
@@ -27,8 +28,9 @@ using namespace std;
 //     }
 // }
 
-StompProtocol::StompProtocol(const string &host, int port, const string &username):connectionHandler(host, port), isConnected(false),subscriptions() ,subscriptionCounter(0), receiptCounter(0), logOutid(-999), username(username),savedEvents()
+StompProtocol::StompProtocol(const string &host, int port, const string &username):connectionHandler(host, port), isConnected(false),subscriptions() ,subscriptionCounter(0), receiptCounter(0), logOutid(-999), username(username),savedEvents(), connectionMutex(), subscriptionsMutex(), eventMutex()
 {
+
 }
 
 // StompProtocol::StompProtocol(): connectionHandler("", 0), isConnected(false),subscriptions() ,subscriptionCounter(0),username(),savedEvents()
@@ -44,6 +46,7 @@ StompProtocol::StompProtocol(const string &host, int port, const string &usernam
 // }
 
 bool StompProtocol::connect(const std::string &username, const std::string &password) {
+    std::lock_guard<std::mutex> lock(connectionMutex);
     // Ensure connection handler is initialized
     if (!connectionHandler.connect()) {
         std::cerr << "Failed to connect to server." << std::endl;
@@ -88,6 +91,7 @@ void StompProtocol::saveEvents(const std::string& channel, const std::vector<Eve
 }
 
 void StompProtocol::disconnect() {
+    std::lock_guard<std::mutex> lock(connectionMutex);
 
     if (!isConnected) {
         std::cerr << "Not connected to any server." << std::endl;
@@ -105,6 +109,7 @@ void StompProtocol::disconnect() {
 
 void StompProtocol::subscribe(const std::string &channel) {
     int subscriptionId = ++subscriptionCounter; // Generate a unique subscription ID
+    std::lock_guard<std::mutex> subLock(subscriptionsMutex);
     subscriptions[channel] = subscriptionId;
 
     // Construct and send SUBSCRIBE frame
@@ -116,6 +121,7 @@ void StompProtocol::subscribe(const std::string &channel) {
 }
 
 void StompProtocol::unsubscribe(const std::string &channel) {
+    std::lock_guard<std::mutex> subLock(subscriptionsMutex);
     if (subscriptions.find(channel) == subscriptions.end()) {
         std::cerr << "Not subscribed to channel: " << channel << std::endl;
         return;
@@ -151,7 +157,7 @@ void StompProtocol::processServerMessages() {
             isConnected = false;
             //break;
         }
-        //דstd::cout << "the message is  "<< message << std::endl;
+        //std::cout << "the message is  "<< message << std::endl;
 
         // Parse the server message
         if (message.find("CONNECTED") != std::string::npos) {
@@ -191,8 +197,10 @@ void StompProtocol::processServerMessages() {
                 savedEvents[channel] = std::vector<Event>();
             }
             savedEvents[channel].push_back(event);
+            cout << "savedEvents[channel].size() " << savedEvents[channel].size() << endl;
+
             std::sort(savedEvents[channel].begin(), savedEvents[channel].end(), [](const Event& a, const Event& b) {
-                return a.get_date_time() < b.get_date_time(); // מיון בסדר עולה
+                return a.get_date_time() < b.get_date_time(); // Sort by date_time
             });
 
         } else {
@@ -341,6 +349,7 @@ void StompProtocol::report(const std::string &filePath) {
 
 
 void StompProtocol::sendEventToChannel(const std::string& channel, const Event& event) {
+    std::lock_guard<std::mutex> lock(eventMutex);
     std::ostringstream frameBody;
 
     // Extract general information from the map
@@ -503,6 +512,8 @@ void StompProtocol::sendEventToChannel(const std::string& channel, const Event& 
 // }
 
 void StompProtocol::handleSummaryCommand(const std::string &channelName, const std::string &user, const std::string &file) {
+    std::lock_guard<std::mutex> lock(eventMutex);
+
     // Open the output file
     std::ofstream outputFile(file);
     if (!outputFile.is_open()) {

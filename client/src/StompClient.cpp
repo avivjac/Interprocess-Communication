@@ -46,7 +46,7 @@ int main() {
                 string host = hostPort.substr(0, colonPos);
                 int port = stoi(hostPort.substr(colonPos + 1));
 
-                protocol =new StompProtocol(host, port, username);
+                protocol = new StompProtocol(host, port, username);
             
                 // Attempt to connect
                 if (!protocol->connect(username, password)) {
@@ -60,7 +60,6 @@ int main() {
                         isLogin = true;
                         serverThread = std::thread(&StompProtocol::processServerMessages, protocol);
                     }
-                    
                 }
             }
             else
@@ -103,8 +102,10 @@ int main() {
             }
 
         } else if (command == "logout") {
-           protocol->disconnect();
+            protocol->disconnect();
             cout << "Logged out successfully." << endl;
+            protocol = nullptr;
+            //isLogin = false;
 
         } else if (command == "report") {
             string file;
@@ -127,7 +128,6 @@ int main() {
                 protocol->handleSummaryCommand(channelName, user, file);
                 cout << "Summary created for user " << user << " in channel " << channelName << " saved to " << file << endl;
             }
-
         } else {
             cerr << "Unknown command: " << command << endl;
         }

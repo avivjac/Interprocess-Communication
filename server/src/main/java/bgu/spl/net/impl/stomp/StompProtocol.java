@@ -141,7 +141,6 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
             return createErrorFrame("User not logged in. Please CONNECT first.", null, msg);
         }
         String finalDestination = msg.getHeader("destination");
-        //final String finalDestination = destination.substring(1); // Remove the leading '/' character
 
         if (finalDestination == null) {
             return createErrorFrame("SEND frame missing 'destination' header.", null, msg);
@@ -162,6 +161,7 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
                 .orElse(null));
         returnMsg.addHeader("Message-id", String.valueOf(connectionId));
         returnMsg.addHeader("destination", finalDestination);
+        
         //send the meassage to all the subscribers
         ((ConnectionsImpl<StompFrame>) connections).send(finalDestination ,returnMsg);
 

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <mutex>
 
 using namespace std;
 
@@ -19,7 +20,9 @@ private:
     int logOutid;
     std::string username;
     std::map<std::string, std::vector<Event>> savedEvents; // Map channel names to saved events
-
+    std::mutex connectionMutex;
+    std::mutex subscriptionsMutex;
+    std::mutex eventMutex;
 public:
     StompProtocol(const string &host, int port);
     StompProtocol(const string &host, int port, const string &username);
