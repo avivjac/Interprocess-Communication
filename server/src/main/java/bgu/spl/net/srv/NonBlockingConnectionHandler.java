@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
 
-    private static final int BUFFER_ALLOCATION_SIZE = 1 << 13; //8k
+    private static final int BUFFER_ALLOCATION_SIZE = 1 << 13; // 8k
     private static final ConcurrentLinkedQueue<ByteBuffer> BUFFER_POOL = new ConcurrentLinkedQueue<>();
 
     private final MessagingProtocol<T> protocol;
@@ -97,8 +97,10 @@ public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
         }
 
         if (writeQueue.isEmpty()) {
-            if (protocol.shouldTerminate()) close();
-            else reactor.updateInterestedOps(chan, SelectionKey.OP_READ);
+            if (protocol.shouldTerminate())
+                close();
+            else
+                reactor.updateInterestedOps(chan, SelectionKey.OP_READ);
         }
     }
 
@@ -118,12 +120,13 @@ public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
 
     @Override
     public void send(T msg) {
-        if (msg == null) return;
+        if (msg == null)
+            return;
 
         // Encode the message
         ByteBuffer encodedMsg = ByteBuffer.wrap(encdec.encode(msg));
         writeQueue.add(encodedMsg); // Add to the write queue
-    
+
         // Ensure the channel is set to write mode
         reactor.updateInterestedOps(chan, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
     }

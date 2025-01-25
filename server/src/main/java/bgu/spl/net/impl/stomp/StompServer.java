@@ -26,22 +26,19 @@ public class StompServer {
         // Create factories for protocol and encoder/decoder
         Supplier<MessagingProtocol<StompFrame>> protocolFactory = StompProtocol::new;
         Supplier<MessageEncoderDecoder<StompFrame>> encoderDecoderFactory = StompEncoderDecoder::new;
-        System.out.println("checking!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 
         // Start the server based on the mode
         if (serverType.equals("tpc")) {
             Server.threadPerClient(
                     port,
                     protocolFactory,
-                    encoderDecoderFactory
-            ).serve();
+                    encoderDecoderFactory).serve();
         } else if (serverType.equals("reactor")) {
             Server.reactor(
                     Runtime.getRuntime().availableProcessors(),
                     port,
                     protocolFactory,
-                    encoderDecoderFactory
-            ).serve();
+                    encoderDecoderFactory).serve();
         } else {
             System.out.println("Invalid server type: " + serverType + " - must be 'tpc' or 'reactor'");
         }

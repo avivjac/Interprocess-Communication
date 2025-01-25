@@ -30,16 +30,11 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     @Override
     public void send(String channel, T msg) {
-        System.out.println("enter send");
         List<Integer> subscribers = channels.get(channel);
-        System.out.println( "subscribers: " + subscribers);
         if (subscribers != null) {
             for (Integer connectionId : subscribers) {
-                System.out.println("connectionId: " + connectionId);
                 ConnectionHandler<T> connection = connections.get(connectionId);
-                System.out.println("connection: " + connection);
                 if (connection != null) {
-                    System.out.println("message sent");
                     connection.send(msg);
                 }
             }

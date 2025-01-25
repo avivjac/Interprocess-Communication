@@ -70,7 +70,9 @@
         "ranges": "cpp",
         "stop_token": "cpp",
         "cinttypes": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "regex": "cpp",
+        "shared_mutex": "cpp"
     },
     "makefile.makefilePath": "client/"
 }

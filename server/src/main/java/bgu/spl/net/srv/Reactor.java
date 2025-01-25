@@ -41,16 +41,16 @@ public class Reactor<T> implements Server<T> {
 
     @Override
     public void serve() {
-	selectorThread = Thread.currentThread();
+        selectorThread = Thread.currentThread();
         try (Selector selector = Selector.open();
                 ServerSocketChannel serverSock = ServerSocketChannel.open()) {
 
-            this.selector = selector; //just to be able to close
+            this.selector = selector; // just to be able to close
 
             serverSock.bind(new InetSocketAddress(port));
             serverSock.configureBlocking(false);
             serverSock.register(selector, SelectionKey.OP_ACCEPT);
-			System.out.println("Server started");
+            System.out.println("Server started");
 
             while (!Thread.currentThread().isInterrupted()) {
 
@@ -68,18 +68,18 @@ public class Reactor<T> implements Server<T> {
                     }
                 }
 
-                selector.selectedKeys().clear(); //clear the selected keys set so that we can know about new events
+                selector.selectedKeys().clear(); // clear the selected keys set so that we can know about new events
 
             }
 
         } catch (ClosedSelectorException ex) {
-            //do nothing - server was requested to be closed
+            // do nothing - server was requested to be closed
         } catch (IOException ex) {
-            //this is an error
+            // this is an error
             ex.printStackTrace();
         }
 
-        System.out.println("server closed!!!");
+        System.out.println("server closed");
         pool.shutdown();
     }
 
@@ -95,49 +95,34 @@ public class Reactor<T> implements Server<T> {
         }
     }
 
-
-    //changing it - previous edition!!!!
-    // private void handleAccept(ServerSocketChannel serverChan, Selector selector) throws IOException {
-    //     SocketChannel clientChan = serverChan.accept();
-    //     clientChan.configureBlocking(false);
-    //     final NonBlockingConnectionHandler<T> handler = new NonBlockingConnectionHandler<>(
-    //             readerFactory.get(),
-    //             protocolFactory.get(),
-    //             clientChan,
-    //             this);
-    //     clientChan.register(selector, SelectionKey.OP_READ, handler);
-    // }
-
     private void handleAccept(ServerSocketChannel serverChan, Selector selector) throws IOException {
         SocketChannel clientChan = serverChan.accept();
         clientChan.configureBlocking(false);
-    
+
         // Assign a unique connectionId
         ++connectionId;
 
         // Create the protocol and pass connections
         MessagingProtocol<T> protocol = protocolFactory.get();
         protocol.start(connectionId, connections); // Initialize the protocol
-    
+
         // Create the connection handler
         final NonBlockingConnectionHandler<T> handler = new NonBlockingConnectionHandler<>(
                 readerFactory.get(),
                 protocol,
                 clientChan,
                 this);
-        
+
         this.pool.submit(handler, () -> {
             handler.getProtocol().start(this.connectionId, this.connections);
-             this.connections.addConnection(this.connectionId, handler);
-           });        
+            this.connections.addConnection(this.connectionId, handler);
+        });
         // Register the connection and handler
         connections.addConnection(connectionId, handler);
-        
+
         clientChan.register(selector, SelectionKey.OP_READ, handler);
 
-        
     }
-    
 
     private void handleReadWrite(SelectionKey key) {
         @SuppressWarnings("unchecked")
@@ -150,7 +135,7 @@ public class Reactor<T> implements Server<T> {
             }
         }
 
-	    if (key.isValid() && key.isWritable()) {
+        if (key.isValid() && key.isWritable()) {
             handler.continueWrite();
         }
     }

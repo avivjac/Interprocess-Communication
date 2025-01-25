@@ -13,7 +13,6 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
     private Connections<StompFrame> connections;
     private String username;
     private Map<String, String> subscriptions; // Subscription ID to channel mapping
-    
 
     public StompProtocol() {
         subscriptions = new ConcurrentHashMap<>();
@@ -28,7 +27,6 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
     @Override
     public StompFrame process(StompFrame msg) {
         String command = msg.getCommand();
-        System.out.println("command!!!!!!!!!!!!!!!!" + command);
 
         switch (command) {
             case "CONNECT":
@@ -52,41 +50,34 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
     }
 
     private StompFrame handleConnect(StompFrame msg) {
-        //Case 2 - The client is already logged in
-        System.out.println("somenone is trying to connect " + username);
+        // Case 2 - The client is already logged in
 
         if (username != null) {
             return createErrorFrame("The client is already logged in, log out before trying again", null, msg);
         }
 
         String login = msg.getHeader("login");
-        System.out.println("user: " + login);
         String passcode = msg.getHeader("passcode");
 
-        //case 1 - farme validation 
-        if (login.equals(("")) || passcode.equals("") || login == null || passcode == null) { 
-            
+        // case 1 - farme validation
+        if (login.equals(("")) || passcode.equals("") || login == null || passcode == null) {
             return createErrorFrame("Could not connect to server", null, msg);
         }
-
         ConnectionsImpl<StompFrame> connectionsImpl = (ConnectionsImpl<StompFrame>) connections;
-
-        //case 5
+        // case 5
         if (!connectionsImpl.registerUser(login, passcode) && !connectionsImpl.authenticateUser(login, passcode)) {
             return createErrorFrame("Wrong password", null, msg);
         }
-
-        //Case 4
+        // Case 4
         if (!connectionsImpl.loginUser(login, connectionId)) {
             return createErrorFrame("User already logged in.", null, msg);
         }
-
         this.username = login;
-        //case 6
+        // case 6
         StompFrame ret = new StompFrame("CONNECTED");
         ret.addHeader("version", "1.2");
-
-        return ret; //return the stomp frame
+        System.out.println("User " + username + " connected");
+        return ret; // return the stomp frame
     }
 
     private StompFrame handleSubscribe(StompFrame msg) {
@@ -96,7 +87,6 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         }
 
         String destination = msg.getHeader("destination");
-        System.out.println("someone is subscribing to " + destination.toString());
         String subscriptionId = msg.getHeader("id");
 
         if (subscriptions.containsValue(destination)) {
@@ -107,7 +97,7 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
             return createErrorFrame("SUBSCRIBE frame missing 'destination' or 'id' header.", receiptID, msg);
         }
         // ido added a print
-        System.out.println(subscriptionId+" is subscribing to " + destination.toString());
+        System.out.println(username + " is subscribing to " + destination.toString());
 
         subscriptions.put(subscriptionId, destination);
         ((ConnectionsImpl<StompFrame>) connections).subscribeToChannel(destination, connectionId);
@@ -125,12 +115,12 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         if (subscriptionId == null || !subscriptions.containsKey(subscriptionId)) {
             return createErrorFrame("UNSUBSCRIBE frame missing 'id' or invalid subscription.", receiptID, msg);
         }
-        
+
         String destination = subscriptions.remove(subscriptionId);
         ((ConnectionsImpl<StompFrame>) connections).unsubscribeFromChannel(destination, connectionId);
 
         // ido added a print
-        System.out.println(subscriptionId+" is unsubscribing from " + destination.toString());
+        System.out.println(username + " is unsubscribing from " + destination.toString());
 
         return createReceiptFrame(receiptID);
     }
@@ -144,13 +134,10 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         if (finalDestination == null) {
             return createErrorFrame("SEND frame missing 'destination' header.", null, msg);
         }
-        // ido added a print
-        System.out.println("someone is sending to " + finalDestination.toString() + " the messege: "+msg.getBody());
 
         if (!subscriptions.containsValue(finalDestination)) {
             return createErrorFrame("User is not subscribed to this channel.", null, msg);
         }
-
         StompFrame returnMsg = new StompFrame("MESSAGE");
         returnMsg.setBody(msg.getBody());
         returnMsg.addHeader("subscription", subscriptions.entrySet().stream()
@@ -161,8 +148,9 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         returnMsg.addHeader("Message-id", String.valueOf(connectionId));
         returnMsg.addHeader("destination", finalDestination);
 
-        //send the meassage to all the subscribers
-        ((ConnectionsImpl<StompFrame>) connections).send(finalDestination ,returnMsg);
+        System.out.println("User " + username + " sent a message to " + finalDestination);
+        // send the meassage to all the subscribers
+        ((ConnectionsImpl<StompFrame>) connections).send(finalDestination, returnMsg);
 
         return createReceiptFrame(msg.getHeader("receipt"));
     }
@@ -173,11 +161,11 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         if (username == null) {
             return createErrorFrame("User not logged in. Please CONNECT first.", receiptID, msg);
         }
-        
+
         // Remove the user from active users
         StompFrame s = createReceiptFrame(receiptID);
         System.out.println(s);
-
+        System.out.println("User " + username + " disconnected");
         ((ConnectionsImpl<StompFrame>) connections).send(this.connectionId, s);
 
         try {
@@ -185,16 +173,11 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        
         ((ConnectionsImpl<StompFrame>) connections).logoutUser(username);
 
         // Clear all subscriptions
         subscriptions.clear();
-
-        // ido added a print
-        System.out.println("someone is dissconnecting");
-    
-
+        
         return null;
     }
 
@@ -207,11 +190,12 @@ public class StompProtocol implements MessagingProtocol<StompFrame> {
         return null;
     }
 
-    //function to create an error frame, if the frame have receipt id it will add to the error frame, else, it will get null as the receipt id and will not add it to the error frame
+    // function to create an error frame, if the frame have receipt id it will add
+    // to the error frame, else, it will get null as the receipt id and will not add
+    // it to the error frame
     private StompFrame createErrorFrame(String message, String receiptId, StompFrame msg) {
         StompFrame errorFrame = new StompFrame("ERROR");
-        if (receiptId != null)
-        {
+        if (receiptId != null) {
             errorFrame.addHeader("receipt-id", receiptId);
         }
         errorFrame.addHeader("message", message);

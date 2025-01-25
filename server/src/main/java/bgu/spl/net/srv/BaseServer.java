@@ -4,24 +4,24 @@ import bgu.spl.net.api.MessageEncoderDecoder;
 import bgu.spl.net.api.MessagingProtocol;
 import bgu.spl.net.impl.stomp.StompFrame;
 
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-public  class BaseServer implements Server<StompFrame> {
-    //fields
+public class BaseServer implements Server<StompFrame> {
+    // fields
     private final int port;
     private final Supplier<MessagingProtocol<StompFrame>> protocolFactory;
     private final Supplier<MessageEncoderDecoder<StompFrame>> encdecFactory;
     private ServerSocket sock;
     private Connections<StompFrame> connections;
-    private  AtomicInteger connectionIdCounter;
+    private AtomicInteger connectionIdCounter;
 
-    //constructor
-    public BaseServer(int port, Supplier<MessagingProtocol<StompFrame>> protocolFactory, Supplier<MessageEncoderDecoder<StompFrame>> encdecFactory) {
+    // constructor
+    public BaseServer(int port, Supplier<MessagingProtocol<StompFrame>> protocolFactory,
+            Supplier<MessageEncoderDecoder<StompFrame>> encdecFactory) {
 
         this.port = port;
         this.protocolFactory = protocolFactory;
@@ -41,11 +41,9 @@ public  class BaseServer implements Server<StompFrame> {
 
             while (!Thread.currentThread().isInterrupted()) {
                 Socket clientSock = serverSock.accept();
-                System.out.println("socket enterd!!!!!!!!!!" + clientSock.toString());
-
                 int connectionId = connectionIdCounter.getAndIncrement();
-
-                BlockingConnectionHandler<StompFrame> handler = new BlockingConnectionHandler<>(clientSock,encdecFactory.get(),protocolFactory.get(), connections, connectionId);
+                BlockingConnectionHandler<StompFrame> handler = new BlockingConnectionHandler<>(clientSock,
+                        encdecFactory.get(), protocolFactory.get(), connections, connectionId);
 
                 connections.addConnection(connectionId, handler);
 
@@ -55,7 +53,7 @@ public  class BaseServer implements Server<StompFrame> {
             ex.printStackTrace();
         }
 
-        System.out.println("Server closed!!!");
+        System.out.println("Server closed");
     }
 
     @Override
@@ -65,9 +63,8 @@ public  class BaseServer implements Server<StompFrame> {
         }
     }
 
-    protected void execute(BlockingConnectionHandler<StompFrame>  handler) {
+    protected void execute(BlockingConnectionHandler<StompFrame> handler) {
         new Thread(handler).start();
     }
 
-    //protected abstract void execute(BlockingConnectionHandler<T> handler);
 }
