@@ -170,7 +170,6 @@ int main()
                 else
                 {
                     protocol->handleSummaryCommand(channelName, user, file);
-                    cout << "Summary created for user " << user << " in csummaryhannel " << channelName << " saved to " << file << endl;
                 }
             }
             else

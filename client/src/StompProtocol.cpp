@@ -43,23 +43,7 @@ bool StompProtocol::connect(const std::string &username, const std::string &pass
         return false;
     }
     return true;
-    // // Await server response (CONNECTED frame)
-    // std::string response;
-    // if (!connectionHandler.getFrameAscii(response, '\0'))
-    // {
-    //     std::cerr << "Failed to receive CONNECTED frame." << std::endl;
-    //     return false;
-    // }
 
-    // // Validate response
-    // if (response.find("CONNECTED") != std::string::npos)
-    // {
-    //     isConnected = true;
-    //     return true;
-    // }
-
-    // std::cerr << "Unexpected server response: " << response << std::endl;
-    // return false;
 }
 
 void StompProtocol::saveEvents(const std::string &channel, const std::vector<Event> &events)
@@ -368,6 +352,8 @@ void StompProtocol::handleSummaryCommand(const std::string &channelName, const s
         std::cerr << "Failed to open file for writing: " << file << std::endl;
         return;
     }
+
+    cout << "Summary created for user " << user << " in channel " << channelName << " saved to " << file << endl;
 
     // Header: Channel and Stats
     outputFile << "Channel < " << channelName << " >\n";
